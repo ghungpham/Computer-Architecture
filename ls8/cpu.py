@@ -9,8 +9,12 @@ HLT  = 0b00000001
 LDI  = 0b10000010
 PRN  = 0b01000111
 MUL  = 0b10100010
+ADD  = 0b10100000
 PUSH = 0b01000101
 POP  = 0b01000110
+
+CALL = 0b01010000
+RET  = 0b00010001
 
 SP   = 7
 
@@ -22,6 +26,8 @@ class CPU:
         """Construct a new CPU."""
         self.ram = [0] * 256
         self.reg = [0] * 8
+
+        self.reg[7] = 0xF4
 
          #R7 is reserved as the stack pointer (SP)
          #The SP points at the value at the top of the stack (most recently pushed), or at address `F4` if the stack is empty.
@@ -136,10 +142,17 @@ class CPU:
             ##Print numeric value stored in the given register.
             elif command == PRN:
                 register = self.ram[self.PC + 1]
-                print(f'Result: {self.reg[register]}')
+                print(f'PRN: {self.reg[register]} at reg {register}')
                 self.PC += 2
 
-            
+            elif command == ADD:
+                reg_a = self.ram[self.PC + 1]
+                reg_b = self.ram[self.PC + 2]
+                result = self.alu("ADD", reg_a, reg_b)
+                reg_a = result
+                print(f'ADD')
+                self.PC += 3
+
             elif command == MUL:
                 reg_a = self.ram[self.PC + 1]
                 reg_b = self.ram[self.PC + 2]
@@ -151,8 +164,7 @@ class CPU:
                 print('PUSH')
                 register = self.ram[self.PC + 1]
                 value = self.reg[register]
-                self.reg[register] = value
-
+                
                 ###1. Decrement the `SP`.
                 self.reg[SP] -= 1
                 ###2. Copy the value in the given register to the address pointed to by SP
@@ -167,6 +179,26 @@ class CPU:
 
                 self.reg[SP] += 1
                 self.PC += 2
+
+            elif command == CALL:
+                print('CALL')
+                #push the return address to where we left off where subroutine/func finishes executing
+                self.reg[SP] -= 1
+                self.ram[self.reg[SP]] = self.PC + 2
+
+                #the pc is set to the address stored in the given register
+                register = self.ram[self.PC + 1]
+                #we jump to that location in the RAM and execute the function
+                self.PC = self.reg[register]
+
+            elif command == RET:
+                print('RET')
+                #Return from subroutine/routine.
+                self.PC = self.ram[self.reg[SP]]
+                #Pop the value from the top of the stack and store it in the `PC`.
+                self.reg[SP] += 1
+                
+                
 
 
 
