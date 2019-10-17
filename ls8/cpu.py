@@ -5,11 +5,18 @@ import sys
 
 ##ADD INSTRUCTION TO REFER BY NAME COMMAND INSTEAD OF NUMERIC VALUE
 
-HLT = 0b00000001
-LDI = 0b10000010
-PRN = 0b01000111
-MUL = 0b10100010
+HLT  = 0b00000001
+LDI  = 0b10000010
+PRN  = 0b01000111
+MUL  = 0b10100010
+ADD  = 0b10100000
+PUSH = 0b01000101
+POP  = 0b01000110
 
+CALL = 0b01010000
+RET  = 0b00010001
+
+SP   = 7
 
 
 class CPU:
@@ -17,8 +24,13 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
-        self.ram = [0] * 25
+        self.ram = [0] * 256
         self.reg = [0] * 8
+
+        self.reg[7] = 0xF4
+
+         #R7 is reserved as the stack pointer (SP)
+         #The SP points at the value at the top of the stack (most recently pushed), or at address `F4` if the stack is empty.
 
         ##PC: Program Counter, address of the currently executing instruction
         self.PC = 0
@@ -36,8 +48,6 @@ class CPU:
                 #ignore all the #instructions and #blank line
                 lines = [line for line in f.readlines() if not (line[0]=='#' or line[0]=='\n')]
                 program = [int(line.split('#')[0].strip(), 2) for line in lines]
-                print(program)
-
             address = 0
 
             for instruction in program:
@@ -132,16 +142,64 @@ class CPU:
             ##Print numeric value stored in the given register.
             elif command == PRN:
                 register = self.ram[self.PC + 1]
-                print(f'Result: {self.reg[register]}')
+                print(f'PRN: {self.reg[register]} at reg {register}')
                 self.PC += 2
 
-            
+            elif command == ADD:
+                reg_a = self.ram[self.PC + 1]
+                reg_b = self.ram[self.PC + 2]
+                result = self.alu("ADD", reg_a, reg_b)
+                reg_a = result
+                print(f'ADD')
+                self.PC += 3
+
             elif command == MUL:
                 reg_a = self.ram[self.PC + 1]
                 reg_b = self.ram[self.PC + 2]
                 result = self.alu("MUL", reg_a, reg_b)
                 reg_a = result
                 self.PC += 3
+
+            elif command == PUSH:
+                print('PUSH')
+                register = self.ram[self.PC + 1]
+                value = self.reg[register]
+                
+                ###1. Decrement the `SP`.
+                self.reg[SP] -= 1
+                ###2. Copy the value in the given register to the address pointed to by SP
+                self.ram[self.reg[SP]] = value
+                self.PC +=  2
+
+            elif command == POP:
+                print('POP')
+                register = self.ram[self.PC + 1]
+                value = self.ram[self.reg[SP]]
+                self.reg[register] = value
+
+                self.reg[SP] += 1
+                self.PC += 2
+
+            elif command == CALL:
+                print('CALL')
+                #push the return address to where we left off where subroutine/func finishes executing
+                self.reg[SP] -= 1
+                self.ram[self.reg[SP]] = self.PC + 2
+
+                #the pc is set to the address stored in the given register
+                register = self.ram[self.PC + 1]
+                #we jump to that location in the RAM and execute the function
+                self.PC = self.reg[register]
+
+            elif command == RET:
+                print('RET')
+                #Return from subroutine/routine.
+                self.PC = self.ram[self.reg[SP]]
+                #Pop the value from the top of the stack and store it in the `PC`.
+                self.reg[SP] += 1
+                
+                
+
 
 
             else:
